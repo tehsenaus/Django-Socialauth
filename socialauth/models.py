@@ -1,10 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils.encoding import smart_unicode
 
 class AuthMeta(models.Model):
     """Metadata for Authentication"""
     def __unicode__(self):
-        return '%s - %s' % (self.user, self.provider)
+        return '%s - %s' % (smart_unicode(self.user), self.provider)
     
     user = models.ForeignKey(User)
     provider = models.CharField(max_length=200)
@@ -49,7 +50,7 @@ class LinkedInUserProfile(models.Model):
                                     editable=False)
 
     def __unicode__(self):
-        return "%s's profile" % self.user
+        return "%s's profile" % smart_unicode(self.user)
 
 class TwitterUserProfile(models.Model):
     """
@@ -70,7 +71,7 @@ class TwitterUserProfile(models.Model):
     description = models.CharField(max_length=160, blank=True, null=True)
 
     def __unicode__(self):
-        return "%s's profile" % self.user
+        return "%s's profile" % smart_unicode(self.user)
         
 
 class FacebookUserProfile(models.Model):
@@ -90,4 +91,4 @@ class FacebookUserProfile(models.Model):
     about_me = models.CharField(max_length=160, blank=True, null=True)
     
     def __unicode__(self):
-        return "%s's profile" % self.user
+        return "%s's profile" % smart_unicode(self.user)
