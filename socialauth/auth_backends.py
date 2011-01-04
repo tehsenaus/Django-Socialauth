@@ -83,17 +83,17 @@ class OpenIdBackend:
             else:
                 username = '%s' % (nickname)
                 
-            if email is None :
+            if email is None:
                 valid_username = False
-                email =  "%s@socialauth" % (username)
+                email =  "%s@socialauth.local" % (username)
             else:
                 valid_username = True
             
             if not user:
                 user = User.objects.create_user(username, email)
                 
-            user.first_name = firstname
-            user.last_name = lastname
+            user.first_name = firstname or ''
+            user.last_name = lastname or ''
             user.save()
     
             #create openid association
