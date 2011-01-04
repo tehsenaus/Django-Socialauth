@@ -83,12 +83,9 @@ class FacebookUserProfile(models.Model):
                                     db_index=True)
     
     user = models.ForeignKey(User, related_name='facebook_profiles')
-    profile_image_url = models.URLField(blank=True, null=True)
-    profile_image_url_big = models.URLField(blank=True, null=True)
-    profile_image_url_small = models.URLField(blank=True, null=True)
-    location = models.TextField(blank=True, null=True)
     url = models.URLField(blank=True, null=True)
-    about_me = models.CharField(max_length=160, blank=True, null=True)
     
+    access_token = models.CharField(max_length=255, blank=True, null=True, editable=False)
+
     def __unicode__(self):
         return "%s's profile" % smart_unicode(self.user)

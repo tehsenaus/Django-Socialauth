@@ -2,14 +2,20 @@ from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
 from django.conf import settings
-import facebook
+from django.core.files import File
 
-import urllib
 from socialauth.lib import oauthtwitter2 as oauthtwitter
 from socialauth.models import OpenidProfile as UserAssociation, \
 TwitterUserProfile, FacebookUserProfile, LinkedInUserProfile, AuthMeta
 from socialauth.lib.linkedin import *
 
+import facebook
+try:
+    from emailconfirmation.models import EmailAddress
+except:
+    pass
+
+import urllib
 import random
 
 TWITTER_CONSUMER_KEY = getattr(settings, 'TWITTER_CONSUMER_KEY', '')
@@ -59,9 +65,12 @@ class OpenIdBackend:
                 else:
                     ax_schema = OPENID_AX_PROVIDER_MAP['Default']
                     try:
-                         #should be replaced by correct schema
+                        #should be replaced by correct schema
                         nickname = (request.openid.ax
                                     .getSingle(ax_schema['nickname']))
+                    except:
+                        pass
+                    try:
                         (firstname, 
                             lastname) = (request.openid.ax
                                          .getSingle(ax_schema['fullname'])
@@ -90,7 +99,7 @@ class OpenIdBackend:
                 valid_username = True
             
             if not user:
-                user = User.objects.create_user(username, email)
+                user = User.objects.create_user(username, email or '')
                 
             user.first_name = firstname or ''
             user.last_name = lastname or ''
@@ -159,8 +168,8 @@ class LinkedInBackend:
 
             if not user:
                 user = User(username=username)
-                user.first_name, user.last_name = (profile.firstname
-                                                   , profile.lastname)
+                user.first_name, user.last_name = (profile.firstname, 
+                                                   profile.lastname)
                 user.email = '%s@socialauth' % (username)
                 user.save()
                 
@@ -273,43 +282,81 @@ class FacebookBackend:
                          Site.objects.get_current().domain,
                          reverse("socialauth_facebook_login_done"))
             params["code"] = request.GET.get('code', '')
+            params['scope'] = 'email,publish_stream,read_stream'
 
             url = ("https://graph.facebook.com/oauth/access_token?"
                    + urllib.urlencode(params))
+
             from cgi import parse_qs
             userdata = urllib.urlopen(url).read()
             res_parse_qs = parse_qs(userdata)
+
             # Could be a bot query
             if not res_parse_qs.has_key('access_token'):
                 return None
                 
             access_token = res_parse_qs['access_token'][-1]
-            
+
             graph = facebook.GraphAPI(access_token)
-            uid = graph.get_object('me')['id']
+            fb_data = graph.get_object("me")
+            if not fb_data:
+                return None
+            uid = fb_data['id']
+
             
         try:
             fb_user = FacebookUserProfile.objects.get(facebook_uid=uid)
             return fb_user.user
 
         except FacebookUserProfile.DoesNotExist:
-            
-            # create new FacebookUserProfile
-            graph = facebook.GraphAPI(access_token) 
-            fb_data = graph.get_object("me")
-
-            if not fb_data:
-                return None
-
-            username = uid
+            username = 'FB_' + uid
             if not user:
-                user = User.objects.create(username=username)
-                user.first_name = fb_data['first_name']
-                user.last_name = fb_data['last_name']
-                user.save()
+                try:
+                    user = User.objects.get(email=fb_data['email'])
+                except User.DoesNotExist:
+                    user = False
                 
-            fb_profile = FacebookUserProfile(facebook_uid=uid, user=user)
-            fb_profile.save()
+                try:
+                    email = EmailAddress.objects.get(email=fb_data['email'])
+                except:
+                    email = False
+                
+            if not user and not email:
+                user = User.objects.create(username=username,
+                                           email=fb_data['email'],
+                                           first_name=fb_data['first_name'],
+                                           last_name=fb_data['last_name']
+                                          )
+                user.save()
+                user.groups.add('1')
+                
+                # Pinax support - store profile info
+                try:
+                    profile = user.get_profile()
+                    profile.name = fb_data['first_name'] + ' ' + fb_data['last_name']
+                    profile.save()
+                    
+                    EmailAddress(user=user,
+                             email=user.email,
+                             verified=True,
+                             primary=True).save()
+                except:
+                    pass
+            
+            # Pinax support - email verification
+            if email:
+                user = email.user
+                if email.verified == False:
+                    email.verified = True
+                    email.primary = True
+                    email.save()
+
+            link = fb_data.get('link')
+            
+            FacebookUserProfile(facebook_uid=uid,
+                                user=user,
+                                url=link,
+                                access_token=access_token).save()
             
             auth_meta = AuthMeta(user=user, provider='Facebook').save()
                 

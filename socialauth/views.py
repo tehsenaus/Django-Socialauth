@@ -22,9 +22,15 @@ from socialauth.lib.linkedin import *
 LINKEDIN_CONSUMER_KEY = getattr(settings, 'LINKEDIN_CONSUMER_KEY', '')
 LINKEDIN_CONSUMER_SECRET = getattr(settings, 'LINKEDIN_CONSUMER_SECRET', '')
 
-ADD_LOGIN_REDIRECT_URL = getattr(settings, 'ADD_LOGIN_REDIRECT_URL', '')
+# Support for named login redirect URL
+ADD_LOGIN_REDIRECT_URL_NAME = getattr(settings, 'ADD_LOGIN_REDIRECT_URL_NAME', '')
+try:
+    ADD_LOGIN_REDIRECT_URL = reverse(ADD_LOGIN_REDIRECT_URLNAME)
+except:
+    ADD_LOGIN_REDIRECT_URL = getattr(settings, 'ADD_LOGIN_REDIRECT_URL', '/')
 LOGIN_REDIRECT_URL = getattr(settings, 'LOGIN_REDIRECT_URL', '')
 LOGIN_URL = getattr(settings, 'LOGIN_URL', '')
+LOGOUT_REDIRECT_URL = getattr(settings, 'LOGOUT_REDIRECT_URL', '')
 
 TWITTER_CONSUMER_KEY = getattr(settings, 'TWITTER_CONSUMER_KEY', '')
 TWITTER_CONSUMER_SECRET = getattr(settings, 'TWITTER_CONSUMER_SECRET', '')
@@ -39,13 +45,18 @@ def del_dict_key(src_dict, key):
         del src_dict[key]
 
 def login_page(request):
-    return render_to_response('socialauth/login_page.html', 
+    try:
+        # Support for Pinax login URL
+        response = HttpResponseRedirect(reverse('acct_login'))
+        return response
+    except:
+        return render_to_response('socialauth/login_page.html', 
                               {'next': request.GET.get('next', LOGIN_REDIRECT_URL)}, 
                               context_instance=RequestContext(request))
-
 def linkedin_login(request):
     linkedin = LinkedIn(LINKEDIN_CONSUMER_KEY, LINKEDIN_CONSUMER_SECRET)
-    request_token = linkedin.getRequestToken(callback=request.build_absolute_uri(reverse('socialauth_linkedin_login_done')))
+    request_token = linkedin.getRequestToken(callback=request.build_absolute_uri(
+                    reverse('socialauth_linkedin_login_done')))
     request.session['linkedin_request_token'] = request_token
     signin_url = linkedin.getAuthorizeUrl(request_token)
     return HttpResponseRedirect(signin_url)
@@ -59,10 +70,9 @@ def linkedin_login_done(request):
         # Send them to the login page
         return HttpResponseRedirect(reverse("socialauth_login_page"))
     try:
-        linkedin = LinkedIn(settings.LINKEDIN_CONSUMER_KEY, settings.LINKEDIN_CONSUMER_SECRET)
+        linkedin = LinkedIn(LINKEDIN_CONSUMER_KEY, LINKEDIN_CONSUMER_SECRET)
         verifier = request.GET.get('oauth_verifier', None)
         access_token = linkedin.getAccessToken(request_token,verifier)
-
         request.session['access_token'] = access_token
         user = authenticate(linkedin_access_token=access_token)
     except:
@@ -86,8 +96,11 @@ def twitter_login(request):
     if next:
         request.session['twitter_login_next'] = next
     
-    twitter = oauthtwitter.TwitterOAuthClient(settings.TWITTER_CONSUMER_KEY, settings.TWITTER_CONSUMER_SECRET)
-    request_token = twitter.fetch_request_token(callback=request.build_absolute_uri(reverse('socialauth_twitter_login_done')))
+    twitter = oauthtwitter.TwitterOAuthClient(TWITTER_CONSUMER_KEY, 
+                                              TWITTER_CONSUMER_SECRET)
+    request_token = twitter.fetch_request_token(
+                    callback=request.build_absolute_uri(
+                    reverse('socialauth_twitter_login_done')))
     request.session['request_token'] = request_token.to_string()
     signin_url = twitter.authorize_token_url(request_token)
     return HttpResponseRedirect(signin_url)
@@ -118,7 +131,8 @@ def twitter_login_done(request):
         return HttpResponseRedirect(reverse("socialauth_login_page"))
 
     try:
-        twitter = oauthtwitter.TwitterOAuthClient(settings.TWITTER_CONSUMER_KEY, settings.TWITTER_CONSUMER_SECRET)
+        twitter = oauthtwitter.TwitterOAuthClient(TWITTER_CONSUMER_KEY, 
+                                                  TWITTER_CONSUMER_SECRET)
         access_token = twitter.fetch_access_token(token, verifier)
 
         request.session['access_token'] = access_token.to_string()
@@ -185,7 +199,9 @@ def openid_done(request, provider=None):
     
         #authenticate and login
         try:
-            user = authenticate(openid_key=openid_key, request=request, provider=provider)
+            user = authenticate(openid_key=openid_key, 
+                                request=request, 
+                                provider=provider)
         except:
             user = None
         
@@ -207,22 +223,26 @@ def facebook_login(request):
     """
     Facebook login page
     """
-    next = request.GET.get('next', None)
-    if next:
-        request.session['facebook_login_next'] = next
     
-    if request.REQUEST.get("device"):
-        device = request.REQUEST.get("device")
-    else:
-        device = "user-agent"
-
+    device = request.REQUEST.get("device", "user-agent"):
+    next = request.GET.get('next', False)
+    
     params = {}
     params["client_id"] = FACEBOOK_APP_ID
-    params["redirect_uri"] = request.build_absolute_uri(reverse("socialauth_facebook_login_done"))
+    params["redirect_uri"] = request.build_absolute_uri(
+                             reverse('socialauth_facebook_login_done'))
+    params["scope"] = "email,publish_stream,read_stream"
+    
+    url = ("https://graph.facebook.com/oauth/authorize?%s" % 
+        urllib.urlencode(params))
+    response = HttpResponseRedirect(url)
 
-    url = "https://graph.facebook.com/oauth/authorize?"+urllib.urlencode(params)
+    if next:
+        request.session['redirect'] = next
+        response.set_cookie('redirect', value=next)
+        
+    return response
 
-    return HttpResponseRedirect(url)
 
 def facebook_login_done(request):
     user = authenticate(request=request)
@@ -232,29 +252,37 @@ def facebook_login_done(request):
         request.COOKIES.pop(FACEBOOK_API_KEY + '_user', None)
 
         # TODO: maybe the project has its own login page?
-        logging.debug("SOCIALAUTH: Couldn't authenticate user with Django, redirecting to Login page")
+        logging.debug("SOCIALAUTH: Couldn't authenticate user with Django,"
+                      "redirecting to Login page")
         return HttpResponseRedirect(reverse('socialauth_login_page'))
 
     login(request, user)
     
     logging.debug("SOCIALAUTH: Successfully logged in with Facebook!")
     
-    next = request.GET.get('next')
-    if not next:
-        next = request.session.get('facebook_login_next')
-        del_dict_key(request.session, 'facebook_login_next')
+    next = request.GET.get('next', False)
     
+    if not next:
+        if request.COOKIES.get('redirect', False):
+            response = HttpResponseRedirect(request.COOKIES.get('redirect'))
+            response.delete_cookie('redirect')
+            return response
+        else:
+            next = request.session.get('redirect', False)
+            del_dict_key(request.session, 'redirect')
     if next:
         return HttpResponseRedirect(next)
     else:
         return HttpResponseRedirect(LOGIN_REDIRECT_URL)
 
 def openid_login_page(request):
-    return render_to_response('openid/index.html', context_instance=RequestContext(request))
+    return render_to_response('openid/index.html', 
+                              context_instance=RequestContext(request))
 
 @login_required
 def signin_complete(request):
-    return render_to_response('socialauth/signin_complete.html', context_instance=RequestContext(request))
+    return render_to_response('socialauth/signin_complete.html', 
+                              context_instance=RequestContext(request))
 
 @login_required
 def editprofile(request):
@@ -284,11 +312,11 @@ def editprofile(request):
         edit_form = EditProfileForm(user=request.user)
 
     payload = {'edit_form':edit_form}
-    return render_to_response('socialauth/editprofile.html', payload, RequestContext(request))
+    return render_to_response('socialauth/editprofile.html', 
+                              payload, RequestContext(request))
 
 def social_logout(request):
-    # Todo
-    # still need to handle FB cookies, session etc.
+    # TODO: handle FB cookies, session etc.
 
     # let the openid_consumer app handle openid-related cleanup
     from openid_consumer.views import signout as oid_signout
@@ -299,8 +327,8 @@ def social_logout(request):
 
     if 'next' in request.GET:
         response = HttpResponseRedirect(request.GET.get('next'))
-    elif getattr(settings, 'LOGOUT_REDIRECT_URL', None):
-        response = HttpResponseRedirect(settings.LOGOUT_REDIRECT_URL)
+    elif LOGOUT_REDIRECT_URL:
+        response = HttpResponseRedirect(LOGOUT_REDIRECT_URL)
     else:
         response = logout_response
 
