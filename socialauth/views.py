@@ -50,8 +50,10 @@ def login_page(request):
         response = HttpResponseRedirect(reverse('acct_login'))
         return response
     except:
-        return render_to_response('socialauth/login_page.html', 
-                              {'next': request.GET.get('next', LOGIN_REDIRECT_URL)}, 
+        return render_to_response('socialauth/login_page.html', {
+                              'next': request.GET.get('next', LOGIN_REDIRECT_URL),
+                              'FACEBOOK_APP_ID': FACEBOOK_APP_ID,
+                              },
                               context_instance=RequestContext(request))
 def linkedin_login(request):
     linkedin = LinkedIn(LINKEDIN_CONSUMER_KEY, LINKEDIN_CONSUMER_SECRET)
@@ -282,6 +284,7 @@ def openid_login_page(request):
 @login_required
 def signin_complete(request):
     return render_to_response('socialauth/signin_complete.html', 
+                              {'FACEBOOK_APP_ID': FACEBOOK_APP_ID}
                               context_instance=RequestContext(request))
 
 @login_required
@@ -311,7 +314,7 @@ def editprofile(request):
     if request.method == 'GET':
         edit_form = EditProfileForm(user=request.user)
 
-    payload = {'edit_form':edit_form}
+    payload = {'edit_form':edit_form, 'FACEBOOK_APP_ID': FACEBOOK_APP_ID}
     return render_to_response('socialauth/editprofile.html', 
                               payload, RequestContext(request))
 
