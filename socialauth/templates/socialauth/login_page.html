@@ -33,6 +33,7 @@
 <div id="login">
 
 <form action="{% url socialauth_openid_login %}" method="get" id="openid_form">
+  {% csrf_token %}
   <input type="hidden" name="action" value="verify" />
   
   <fieldset>

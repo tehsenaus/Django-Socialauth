@@ -9,6 +9,7 @@ Enter Comment
 <p>You are currently logged in as <strong>{{ user.username }}</strong></p>
 
 <form action="."  method="post">
+    {% csrf_token %}
     {{ form }}
     <input type="submit" name="comment_submit" value="Comment" />
 </form>
