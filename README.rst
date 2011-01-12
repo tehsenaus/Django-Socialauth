@@ -1,5 +1,20 @@
-What it does.
+Important note
 --------------
+This is a fork to rollup other forks of this app and try to get it running with the most recent facebook/twitter/linkedin APIs. **It is completely untested.**  Just thought I'd share the work while it's in-progress. It's supposed to allow logging in via Facebook, Yahoo, Gmail, Twitter and Openid.
+
+It's sad that Rails has such a complete solution with `omniauth <https://github.com/intridea/omniauth/wiki>`_ -- Django has nothing to compare! I'm hoping we all rally around one of these projects to create our own omniauth. I'm not sure this is the best code base to start from. I'm also exploring the following:
+
+* https://github.com/pennersr/django-allauth
+* https://github.com/flashingpumpkin/django-socialregistration (note the forks) 
+* https://github.com/kmike/django-registration-facebook-backend
+* https://github.com/zbowling/python-oauth2 (good fork of simplegeo's) 
+* https://github.com/tschellenbach/Django-facebook. 
+
+
+NOTE: not sure this is the best code base to start integrating social logins. I'm also exploring https://github.com/pennersr/django-allauth, https://github.com/flashingpumpkin/django-socialregistration (note the forks), https://github.com/kmike/django-registration-facebook-backend, https://github.com/zbowling/python-oauth2 (good fork of simplegeo's), https://github.com/tschellenbach/Django-facebook. 
+
+What it does
+------------
 
 #. Allow logging in via various providers.
 #. Import contacts from various third party sites, to find out which of your
