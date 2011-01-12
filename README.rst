@@ -10,9 +10,6 @@ It's sad that Rails has such a complete solution with `omniauth <https://github.
 * https://github.com/zbowling/python-oauth2 (good fork of simplegeo's) 
 * https://github.com/tschellenbach/Django-facebook. 
 
-
-NOTE: not sure this is the best code base to start integrating social logins. I'm also exploring https://github.com/pennersr/django-allauth, https://github.com/flashingpumpkin/django-socialregistration (note the forks), https://github.com/kmike/django-registration-facebook-backend, https://github.com/zbowling/python-oauth2 (good fork of simplegeo's), https://github.com/tschellenbach/Django-facebook. 
-
 What it does
 ------------
 
