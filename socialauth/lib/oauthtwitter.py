@@ -20,7 +20,7 @@ try:
 except:
     from django.utils import simplejson
 
-from oauth import oauth
+import oauth2 as oauth
 
 
 
@@ -37,8 +37,8 @@ class OAuthApi(Api):
             Api.__init__(self,access_token.key, access_token.secret)
         else:
             Api.__init__(self)
-        self._Consumer = oauth.OAuthConsumer(consumer_key, consumer_secret)
-        self._signature_method = oauth.OAuthSignatureMethod_HMAC_SHA1()
+        self._Consumer = oauth.Consumer(consumer_key, consumer_secret)
+        self._signature_method = oauth.SignatureMethod_HMAC_SHA1()
         self._access_token = access_token
 
 
@@ -146,13 +146,13 @@ class OAuthApi(Api):
         '''
         if not token:
             token = self._access_token
-        request = oauth.OAuthRequest.from_consumer_and_token(
+        request = oauth.Request.from_consumer_and_token(
                             self._Consumer, token=token, 
                             http_url=url, parameters=parameters, 
                             http_method=http_method)
         return request
 
-    def _signRequest(self, req, signature_method=oauth.OAuthSignatureMethod_HMAC_SHA1()):
+    def _signRequest(self, req, signature_method=oauth.SignatureMethod_HMAC_SHA1()):
         '''Sign a request
         
         Reminder: Created this function so incase
@@ -192,7 +192,7 @@ class OAuthApi(Api):
     
     def getAccessToken(self, url=ACCESS_TOKEN_URL):
         token = self._FetchUrl(url, no_cache=True)
-        return oauth.OAuthToken.from_string(token) 
+        return oauth.Token.from_string(token) 
 
     def getRequestToken(self, url=REQUEST_TOKEN_URL):
         '''Get a Request Token from Twitter
@@ -201,7 +201,7 @@ class OAuthApi(Api):
           A OAuthToken object containing a request token
         '''
         resp = self._FetchUrl(url, no_cache=True)
-        token = oauth.OAuthToken.from_string(resp)
+        token = oauth.Token.from_string(resp)
         return token
     
     def GetUserInfo(self, url='https://twitter.com/account/verify_credentials.json'):

@@ -17,7 +17,7 @@ import time
 
 from xml.dom.minidom import parseString
 
-import oauth.oauth as oauth
+import oauth2 as oauth
 
 class LinkedIn():
     LI_SERVER = "api.linkedin.com"
@@ -34,8 +34,8 @@ class LinkedIn():
         self.secret_key = secret_key
 
         self.connection = httplib.HTTPSConnection(self.LI_SERVER)
-        self.consumer = oauth.OAuthConsumer(api_key, secret_key)
-        self.sig_method = oauth.OAuthSignatureMethod_HMAC_SHA1()
+        self.consumer = oauth.Consumer(api_key, secret_key)
+        self.sig_method = oauth.SignatureMethod_HMAC_SHA1()
 
         self.status_api = StatusApi(self)
         self.connections_api = ConnectionsApi(self)
@@ -46,7 +46,7 @@ class LinkedIn():
         """
         oauth_consumer_key = self.api_key
 
-        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.consumer,
+        oauth_request = oauth.Request.from_consumer_and_token(self.consumer,
                         callback=callback,
                         http_url = self.REQUEST_TOKEN_URL)
         oauth_request.sign_request(self.sig_method, self.consumer, None)
@@ -56,7 +56,7 @@ class LinkedIn():
                         self.REQUEST_TOKEN_URL, headers = oauth_request.to_header())
         response = self.connection.getresponse().read()
         
-        token = oauth.OAuthToken.from_string(response)
+        token = oauth.Token.from_string(response)
         return token
 
     def getAuthorizeUrl(self, token):
@@ -64,7 +64,7 @@ class LinkedIn():
         Get the URL that we can redirect the user to for authorization of our
         application.
         """
-        oauth_request = oauth.OAuthRequest.from_token_and_callback(token=token, http_url = self.AUTHORIZE_URL)
+        oauth_request = oauth.Request.from_token_and_callback(token=token, http_url = self.AUTHORIZE_URL)
         return oauth_request.to_url()
 
     def getAccessToken(self, token, verifier):
@@ -74,18 +74,18 @@ class LinkedIn():
 
         Note: token is the request token returned from the call to getRequestToken
 
-        @return an OAuthToken object with the access token.  Use it like this:
+        @return an oauth.Token object with the access token.  Use it like this:
                 token.key -> Key
                 token.secret -> Secret Key
         """
         token.verifier = verifier
-        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.consumer, token=token, verifier=verifier, http_url=self.ACCESS_TOKEN_URL)
+        oauth_request = oauth.Request.from_consumer_and_token(self.consumer, token=token, verifier=verifier, http_url=self.ACCESS_TOKEN_URL)
         oauth_request.sign_request(self.sig_method, self.consumer, token)
         
         # self.connection.request(oauth_request.http_method, self.ACCESS_TOKEN_URL, headers=oauth_request.to_header()) 
         self.connection.request(oauth_request.http_method, oauth_request.to_url()) 
         response = self.connection.getresponse().read()
-        return oauth.OAuthToken.from_string(response)
+        return oauth.Token.from_string(response)
 
     """
     More functionality coming soon...
@@ -96,7 +96,7 @@ class LinkedInApi():
         self.linkedin = linkedin
 
     def doApiRequest(self, url, access_token):
-        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.linkedin.consumer, token=access_token, http_url=url)
+        oauth_request = oauth.Request.from_consumer_and_token(self.linkedin.consumer, token=access_token, http_url=url)
         oauth_request.sign_request(self.linkedin.sig_method, self.linkedin.consumer, access_token)
         self.linkedin.connection.request(oauth_request.http_method, url, headers=oauth_request.to_header())
         return self.linkedin.connection.getresponse().read()
@@ -165,7 +165,7 @@ class ConnectionsApi(LinkedInApi):
 
             li = LinkedIn(LINKEDIN_CONSUMER_KEY, LINKEDIN_CONSUMER_SECRET)
 
-            tokenObj = oauth.OAuthToken(requestTokenKey, requestTokenSecret)
+            tokenObj = oauth.Token(requestTokenKey, requestTokenSecret)
             access_token = li.getAccessToken(tokenObj, verifier)
 
             connections = li.connections_api.getMyConnections(access_token)

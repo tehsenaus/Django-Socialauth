@@ -1,6 +1,6 @@
 import logging
 import urllib
-from oauth import oauth
+import oauth2 as oauth
 
 from django.shortcuts import render_to_response
 from django.template import RequestContext
@@ -123,7 +123,7 @@ def twitter_login_done(request):
         # Redirect the user to the login page,
         return HttpResponseRedirect(reverse("socialauth_login_page"))
 
-    token = oauth.OAuthToken.from_string(request_token)
+    token = oauth.Token.from_string(request_token)
 
     # If the token from session and token from twitter does not match
     # means something bad happened to tokens
@@ -226,7 +226,7 @@ def facebook_login(request):
     Facebook login page
     """
     
-    device = request.REQUEST.get("device", "user-agent"):
+    device = request.REQUEST.get("device", "user-agent")
     next = request.GET.get('next', False)
     
     params = {}
@@ -284,7 +284,7 @@ def openid_login_page(request):
 @login_required
 def signin_complete(request):
     return render_to_response('socialauth/signin_complete.html', 
-                              {'FACEBOOK_APP_ID': FACEBOOK_APP_ID}
+                              {'FACEBOOK_APP_ID': FACEBOOK_APP_ID},
                               context_instance=RequestContext(request))
 
 @login_required

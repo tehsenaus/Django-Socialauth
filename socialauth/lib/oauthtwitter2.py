@@ -29,36 +29,36 @@ def oauth_response(req):
     connection().request(req.http_method, req.to_url())
     return connection().getresponse().read()
 
-class TwitterOAuthClient(oauth.OAuthClient):
+class TwitterOAuthClient(oauth.Client):
     def __init__(self, consumer_key, consumer_secret, request_token_url=REQUEST_TOKEN_URL, access_token_url=ACCESS_TOKEN_URL, authorization_url=AUTHORIZATION_URL):
         self.consumer_secret = consumer_secret
         self.consumer_key = consumer_key
-        self.consumer = oauth.OAuthConsumer(consumer_key, consumer_secret)
-        self.signature_method = oauth.OAuthSignatureMethod_HMAC_SHA1()
+        self.consumer = oauth.Consumer(consumer_key, consumer_secret)
+        self.signature_method = oauth.SignatureMethod_HMAC_SHA1()
         self.request_token_url = request_token_url
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         
     def fetch_request_token(self, callback):
-        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.consumer, http_url=self.request_token_url,
+        oauth_request = oauth.Request.from_consumer_and_token(self.consumer, http_url=self.request_token_url,
                                                                    callback=callback)
         oauth_request.sign_request(self.signature_method, self.consumer, None)
-        return oauth.OAuthToken.from_string(oauth_response(oauth_request))
+        return oauth.Token.from_string(oauth_response(oauth_request))
     
     def authorize_token_url(self, token, callback_url=None):
-        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.consumer, token=token, http_url=self.authorization_url,
+        oauth_request = oauth.Request.from_consumer_and_token(self.consumer, token=token, http_url=self.authorization_url,
                                                                    callback=callback_url)
         oauth_request.sign_request(self.signature_method, self.consumer, token)
         return oauth_request.to_url()
 
     def fetch_access_token(self, token, verifier):
-        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.consumer, token=token, verifier=verifier, http_url=self.access_token_url)
+        oauth_request = oauth.Request.from_consumer_and_token(self.consumer, token=token, verifier=verifier, http_url=self.access_token_url)
         oauth_request.sign_request(self.signature_method, self.consumer, token)
-        return oauth.OAuthToken.from_string(oauth_response(oauth_request))
+        return oauth.Token.from_string(oauth_response(oauth_request))
 
     def get_user_info(self, token):
         try:
-	       oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.consumer, token=token, http_url=TWITTER_CREDENTIALS_URL)
+	       oauth_request = oauth.Request.from_consumer_and_token(self.consumer, token=token, http_url=TWITTER_CREDENTIALS_URL)
 	       oauth_request.sign_request(self.signature_method, self.consumer, token)
 	       return User.NewFromJsonDict(json.loads(oauth_response(oauth_request)))
         except:
@@ -113,7 +113,7 @@ def run_example():
     print '* Access protected resources ...'
     pause()
     parameters = {'file': 'vacation.jpg', 'size': 'original', 'oauth_callback': CALLBACK_URL} # resource specific params
-    oauth_request = oauth.OAuthRequest.from_consumer_and_token(consumer, token=token, http_method='POST', http_url=RESOURCE_URL, parameters=parameters)
+    oauth_request = oauth.Request.from_consumer_and_token(consumer, token=token, http_method='POST', http_url=RESOURCE_URL, parameters=parameters)
     oauth_request.sign_request(signature_method_hmac_sha1, consumer, token)
     print 'REQUEST (via post body)'
     print 'parameters: %s' % str(oauth_request.parameters)
