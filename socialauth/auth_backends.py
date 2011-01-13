@@ -282,7 +282,7 @@ class FacebookBackend:
                          Site.objects.get_current().domain,
                          reverse("socialauth_facebook_login_done"))
             params["code"] = request.GET.get('code', '')
-            params['scope'] = 'email,publish_stream,read_stream'
+            params['scope'] = ','.join(FACEBOOK_EXTENDED_PERMISSIONS)
 
             url = ("https://graph.facebook.com/oauth/access_token?"
                    + urllib.urlencode(params))
@@ -297,12 +297,11 @@ class FacebookBackend:
                 
             access_token = res_parse_qs['access_token'][-1]
 
-            graph = facebook.GraphAPI(access_token)
-            fb_data = graph.get_object("me")
-            if not fb_data:
-                return None
-            uid = fb_data['id']
-
+        graph = facebook.GraphAPI(access_token)
+        fb_data = graph.get_object("me")
+        if not fb_data:
+            return None
+        uid = fb_data['id']
             
         try:
             fb_user = FacebookUserProfile.objects.get(facebook_uid=uid)
@@ -330,7 +329,7 @@ class FacebookBackend:
                 user.save()
                 user.groups.add('1')
                 
-                # Pinax support - store profile info
+                # Pinax or user_profile support - store profile info
                 try:
                     profile = user.get_profile()
                     profile.name = fb_data['first_name'] + ' ' + fb_data['last_name']
@@ -343,7 +342,7 @@ class FacebookBackend:
                 except:
                     pass
             
-            # Pinax support - email verification
+            # Pinax or emailconfirmation support - email verification
             if email:
                 user = email.user
                 if email.verified == False:

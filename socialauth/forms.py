@@ -51,10 +51,10 @@ class EditProfileForm(forms.Form):
             user.set_password(self.cleaned_data['password'])
         user.save()
         try:
-            authmeta = user.authmeta
-            authmeta.is_email_filled = True
-            authmeta.is_profile_modified = True
-            authmeta.save()
+            for authmeta in user.authmeta_set:
+                authmeta.is_email_filled = True
+                authmeta.is_profile_modified = True
+                authmeta.save()
         except AuthMeta.DoesNotExist:
             pass
         return user

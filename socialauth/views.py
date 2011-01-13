@@ -294,8 +294,9 @@ def editprofile(request):
         if edit_form.is_valid():
             user = edit_form.save()
             try:
-                user.authmeta.is_profile_modified = True
-                user.authmeta.save()
+                for authmeta in user.authmeta_set:
+                    authmeta.is_profile_modified = True
+                    authmeta.save()
             except AuthMeta.DoesNotExist:
                 pass
             if hasattr(user,'openidprofile_set') and user.openidprofile_set.count():
