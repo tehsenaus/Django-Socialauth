@@ -44,15 +44,15 @@ class LinkedIn():
         """
         Get a request token from linkedin
         """
+        self.callback = callback
+        
         oauth_consumer_key = self.api_key
 
         oauth_request = oauth.Request.from_consumer_and_token(self.consumer,
-                        callback=callback,
                         http_url = self.REQUEST_TOKEN_URL)
         oauth_request.sign_request(self.sig_method, self.consumer, None)
 
-
-        self.connection.request(oauth_request.http_method,
+        self.connection.request(oauth_request.method,
                         self.REQUEST_TOKEN_URL, headers = oauth_request.to_header())
         response = self.connection.getresponse().read()
         
@@ -64,7 +64,7 @@ class LinkedIn():
         Get the URL that we can redirect the user to for authorization of our
         application.
         """
-        oauth_request = oauth.Request.from_token_and_callback(token=token, http_url = self.AUTHORIZE_URL)
+        oauth_request = oauth.Request.from_token_and_callback(token=token, callback=self.callback, http_url = self.AUTHORIZE_URL)
         return oauth_request.to_url()
 
     def getAccessToken(self, token, verifier):

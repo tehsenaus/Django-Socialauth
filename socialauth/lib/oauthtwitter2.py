@@ -40,8 +40,7 @@ class TwitterOAuthClient(oauth.Client):
         self.authorization_url = authorization_url
         
     def fetch_request_token(self, callback):
-        oauth_request = oauth.Request.from_consumer_and_token(self.consumer, http_url=self.request_token_url,
-                                                                   callback=callback)
+        oauth_request = oauth.Request.from_consumer_and_token(self.consumer, http_url=self.request_token_url)
         oauth_request.sign_request(self.signature_method, self.consumer, None)
         return oauth.Token.from_string(oauth_response(oauth_request))
     
