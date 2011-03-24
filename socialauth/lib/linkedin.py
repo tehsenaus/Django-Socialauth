@@ -17,7 +17,7 @@ import time
 
 from xml.dom.minidom import parseString
 
-import oauth2 as oauth
+from oauth import oauth
 
 class LinkedIn():
     LI_SERVER = "api.linkedin.com"
@@ -28,35 +28,32 @@ class LinkedIn():
     ACCESS_TOKEN_URL = LI_API_URL + "/uas/oauth/accessToken"
 
 
-
     def __init__(self, api_key, secret_key):
         self.api_key = api_key
         self.secret_key = secret_key
 
         self.connection = httplib.HTTPSConnection(self.LI_SERVER)
-        self.consumer = oauth.Consumer(api_key, secret_key)
-        self.sig_method = oauth.SignatureMethod_HMAC_SHA1()
+        self.consumer = oauth.OAuthConsumer(api_key, secret_key)
+        self.sig_method = oauth.OAuthSignatureMethod_HMAC_SHA1()
 
         self.status_api = StatusApi(self)
-        self.connections_api = ConnectionsApi(self)
+        self.connections_api = ConnectionsApi(self) 
 
     def getRequestToken(self, callback):
         """
         Get a request token from linkedin
         """
-        self.callback = callback
-        
         oauth_consumer_key = self.api_key
 
-        oauth_request = oauth.Request.from_consumer_and_token(self.consumer,
+        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.consumer,
                         http_url = self.REQUEST_TOKEN_URL)
         oauth_request.sign_request(self.sig_method, self.consumer, None)
 
-        self.connection.request(oauth_request.method,
+        self.connection.request(oauth_request.http_method,
                         self.REQUEST_TOKEN_URL, headers = oauth_request.to_header())
         response = self.connection.getresponse().read()
         
-        token = oauth.Token.from_string(response)
+        token = oauth.OAuthToken.from_string(response)
         return token
 
     def getAuthorizeUrl(self, token):
@@ -64,7 +61,7 @@ class LinkedIn():
         Get the URL that we can redirect the user to for authorization of our
         application.
         """
-        oauth_request = oauth.Request.from_token_and_callback(token=token, callback=self.callback, http_url = self.AUTHORIZE_URL)
+        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.consumer, token=token, http_url = self.AUTHORIZE_URL)
         return oauth_request.to_url()
 
     def getAccessToken(self, token, verifier):
@@ -79,13 +76,13 @@ class LinkedIn():
                 token.secret -> Secret Key
         """
         token.verifier = verifier
-        oauth_request = oauth.Request.from_consumer_and_token(self.consumer, token=token, verifier=verifier, http_url=self.ACCESS_TOKEN_URL)
+        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.consumer, token=token, verifier=verifier, http_url=self.ACCESS_TOKEN_URL)
         oauth_request.sign_request(self.sig_method, self.consumer, token)
         
         # self.connection.request(oauth_request.http_method, self.ACCESS_TOKEN_URL, headers=oauth_request.to_header()) 
         self.connection.request(oauth_request.http_method, oauth_request.to_url()) 
         response = self.connection.getresponse().read()
-        return oauth.Token.from_string(response)
+        return oauth.OAuthToken.from_string(response)
 
     """
     More functionality coming soon...
@@ -96,7 +93,7 @@ class LinkedInApi():
         self.linkedin = linkedin
 
     def doApiRequest(self, url, access_token):
-        oauth_request = oauth.Request.from_consumer_and_token(self.linkedin.consumer, token=access_token, http_url=url)
+        oauth_request = oauth.OAuthRequest.from_consumer_and_token(self.linkedin.consumer, token=access_token, http_url=url)
         oauth_request.sign_request(self.linkedin.sig_method, self.linkedin.consumer, access_token)
         self.linkedin.connection.request(oauth_request.http_method, url, headers=oauth_request.to_header())
         return self.linkedin.connection.getresponse().read()
