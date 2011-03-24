@@ -132,15 +132,12 @@ def twitter_login_done(request):
         # Redirect the user to the login page
         return HttpResponseRedirect(reverse("socialauth_login_page"))
 
-    try:
-        twitter = oauthtwitter.TwitterOAuthClient(TWITTER_CONSUMER_KEY, 
-                                                  TWITTER_CONSUMER_SECRET)
-        access_token = twitter.fetch_access_token(token, verifier)
+    twitter = oauthtwitter.TwitterOAuthClient(TWITTER_CONSUMER_KEY, 
+                                              TWITTER_CONSUMER_SECRET)
+    access_token = twitter.fetch_access_token(token, verifier)
 
-        request.session['access_token'] = access_token.to_string()
-        user = authenticate(twitter_access_token=access_token)
-    except:
-        user = None
+    request.session['access_token'] = access_token.to_string()
+    user = authenticate(twitter_access_token=access_token)
   
     # if user is authenticated then login user
     if user:
