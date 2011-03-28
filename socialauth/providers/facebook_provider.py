@@ -8,7 +8,7 @@ from django.contrib.sites.models import Site
 import urllib, logging
 
 import facebook
-from .base import *
+from base import *
 
 try:
     FACEBOOK_APP_ID = getattr(settings, 'FACEBOOK_APP_ID')

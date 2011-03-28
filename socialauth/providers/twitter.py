@@ -1,5 +1,5 @@
 from django.conf import settings
-from .oauth import OAuth
+from oauth_provider import OAuth
 
 TWITTER_CONSUMER_KEY = getattr(settings, 'TWITTER_CONSUMER_KEY', '')
 TWITTER_CONSUMER_SECRET = getattr(settings, 'TWITTER_CONSUMER_SECRET', '')
