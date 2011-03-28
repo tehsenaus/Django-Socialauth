@@ -1,10 +1,11 @@
-from socialauth.models import AuthMeta, OpenidProfile, TwitterUserProfile, \
-FacebookUserProfile, LinkedInUserProfile
-
 from django.contrib import admin
+from django.db.models import Model
+from socialauth import models
 
-admin.site.register(AuthMeta)
-admin.site.register(OpenidProfile)
-admin.site.register(TwitterUserProfile)
-admin.site.register(FacebookUserProfile)
-admin.site.register(LinkedInUserProfile)
+for name in dir(models):
+    item = getattr(models, name)
+    if isinstance(item, type) and issubclass(item, Model):
+        try:
+            admin.site.register(item)
+        except admin.sites.AlreadyRegistered:
+            pass
