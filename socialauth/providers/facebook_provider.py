@@ -14,7 +14,7 @@ try:
     FACEBOOK_APP_ID = getattr(settings, 'FACEBOOK_APP_ID')
     FACEBOOK_API_KEY = getattr(settings, 'FACEBOOK_API_KEY')
     FACEBOOK_SECRET_KEY = getattr(settings, 'FACEBOOK_SECRET_KEY')
-except AttributeError as e:
+except AttributeError, e:
     raise ImproperlyConfigured, \
         "Missing settings for Facebook authentication: %s" \
         % (e)
