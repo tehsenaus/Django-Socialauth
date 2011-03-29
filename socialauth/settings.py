@@ -3,7 +3,7 @@ import sys, logging
 from socialauth.providers.base import Provider
 
 SOCIALAUTH_PROVIDERS_MAP = {}
-for p in settings.AUTHENTICATION_BACKENDS:
+for p in getattr(settings, 'SOCIALAUTH_PROVIDERS', ()):
     module, sep, klass = p.rpartition('.')
     __import__(module)
     module = sys.modules[module]

@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.utils.encoding import smart_unicode
 from socialauth.providers.base import ProviderModel
 import sys
+from .fields import PickledObjectField
 from .settings import SOCIALAUTH_PROVIDERS_MAP
 
 # Import Model classes from all enabled providers
@@ -13,7 +14,26 @@ for provider in SOCIALAUTH_PROVIDERS_MAP.values():
         if isinstance(item, type) and issubclass(item, ProviderModel):
             globals()[name] = item
 
-
+class AuthMeta(ProviderModel):
+    """Metadata for Authentication"""
+    def __unicode__(self):
+        return '%s - %s' % (smart_unicode(self.user), self.provider)
+    
+    user = models.ForeignKey(User)
+    provider = models.CharField(max_length=50)
+    uid = models.CharField(max_length=255)
+    url = models.TextField(null=True, blank=True)
+    token = models.TextField(null=True, blank=True)
+    info = PickledObjectField()
+    
+    class Meta:
+        unique_together = ('provider','uid')
+    
+    def update(self, user, url=None, token=None, **info):
+        self.user = user
+        if url: self.url = url
+        if token: self.token = token
+        if info: self.info = info
 
 
 class TwitterUserProfile(models.Model):

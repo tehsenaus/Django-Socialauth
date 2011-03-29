@@ -4,7 +4,7 @@ import oauth2 as oauth
 
 from django.shortcuts import render_to_response
 from django.template import RequestContext
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import login
 from django.http import HttpResponseRedirect
 from django.core.urlresolvers import reverse
 from django.conf import settings
@@ -17,8 +17,7 @@ from socialauth.forms import EditProfileForm
 from openid_consumer.views import begin
 from socialauth.lib import oauthtwitter2 as oauthtwitter
 
-from socialauth.lib.linkedin import *
-
+from . import authenticate
 from .settings import SOCIALAUTH_PROVIDERS_MAP
 
 # Support for named login redirect URL
@@ -46,24 +45,59 @@ def login_page(request):
                               },
                               context_instance=RequestContext(request))
 
-def login_request(request, provider_name, *args, **kwargs):
+def login_request(request, auth_provider, *args, **kwargs):
     try:
-        provider = SOCIALAUTH_PROVIDERS_MAP[provider_name]()
+        provider = SOCIALAUTH_PROVIDERS_MAP[auth_provider]()
     except KeyError:
-        logging.error("Socialauth: No such provider: %s", provider_name)
+        logging.error("Socialauth: No such provider: %s", auth_provider)
         return HttpResponseRedirect(reverse('socialauth_login_page'))
     
-    return provider.login_request(request, *args, **kwargs)
+    response = provider.login_request(request, *args, **kwargs)
+    
+    next = request.GET.get('next', None)
+    if next:
+        request.session['redirect'] = next
+        response.set_cookie('redirect', value=next)
+    
+    return response
 
-def login_request_callback(request, provider_name, *args, **kwargs):
-    try:
-        provider = SOCIALAUTH_PROVIDERS_MAP[provider_name]()
-    except KeyError:
-        logging.error("Socialauth: No such provider: %s", provider_name)
+
+def login_request_callback(request, auth_provider):
+    """
+    Default login request callback - authenticates the user, and redirects to
+    the requested page. If the user is already logged in, this account is associated
+    with them. 
+    """
+    
+    user = authenticate(request)
+    if not user:
+        log.error("auth failed")
         return HttpResponseRedirect(reverse('socialauth_login_page'))
     
-    return provider.login_request_callback(request, *args, **kwargs)
+    if not user.is_active:
+        # TODO: disabled account message
+        logging.warn("User account %s disabled, attempted login from %s", user, auth_provider)
+        return HttpResponseRedirect(reverse('socialauth_login_page'))
+    
+    login(request, user)
+    
+    next = request.GET.get('next', None)
+    
+    if not next:
+        if request.COOKIES.get('redirect', False):
+            next = request.COOKIES.get('redirect')
+        else:
+            next = request.session.get('redirect', False)
+    
+    if next:
+        response = HttpResponseRedirect(next)
+    else:
+        response = HttpResponseRedirect(settings.LOGIN_REDIRECT_URL)
 
+    response.delete_cookie('redirect')
+    del_dict_key(request.session, 'redirect')
+
+    return response
 
 def twitter_login(request):
     next = request.GET.get('next', None)
@@ -220,3 +254,7 @@ def social_logout(request):
 
 def closeDialog(request):
     return HttpResponse("<script>window.close()</script>")
+
+def del_dict_key(src_dict, key):
+    if key in src_dict:
+        del src_dict[key]
