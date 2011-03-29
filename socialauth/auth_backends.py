@@ -2,29 +2,29 @@ from django.contrib.auth.models import User
 from .models import AuthMeta
 
 class SocialAuthBackend(object):
-    def authenticate_meta(self, auth_provider, uid, user=None, email=None, first_name=None, last_name=None, **kwargs):
+    def authenticate_meta(self, auth_provider, uid, user=None, username=None, password=None, email='', first_name=None, last_name=None, **kwargs):
+        """
+            Retrieves and creates (if necessary) authentication associations to a user account.
+            If user is None, a new user account will be created.
+            
+            Note: if an association already exists, it is returned as-is (even if it is for a different user).
+        """
         try:
-            meta,created = AuthMeta.objects.get(provider=auth_provider.provider_name, uid=uid),False
+            return AuthMeta.objects.get(provider=auth_provider.provider_name, uid=uid)
         except AuthMeta.DoesNotExist:
-            meta,created = AuthMeta(provider=auth_provider.provider_name, uid=uid),True
+            meta = AuthMeta(provider=auth_provider.provider_name, uid=uid)
         
         if not user.is_authenticated(): user = None
-        
-        if not created and not user:
-            return meta.user
-        
-        if not user and email and auth_provider.has_secure_email:
-            # Try to lookup existing user via email address
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                pass
-        
         if not user:
-            user = User.objects.create(
-                    username="%s::%s" % (auth_provider.provider_name, uid),
-                    email=email, first_name=first_name, last_name=last_name
+            if (username and User.objects.filter(username=username)) or not username:
+               username = "%s::%s" % (auth_provider.provider_name, username or uid)
+            
+            user = User.objects.create_user(
+                    username=username, password=password,
+                    email=email
             )
+            user.first_name=first_name
+            user.last_name=last_name
             user.save()
         
         meta.update(user, **kwargs)

@@ -15,9 +15,8 @@ from socialauth.models import AuthMeta
 from socialauth.forms import EditProfileForm
 
 from openid_consumer.views import begin
-from socialauth.lib import oauthtwitter2 as oauthtwitter
 
-from . import authenticate
+from . import get_auth_provider, authenticate, del_dict_key
 from .settings import SOCIALAUTH_PROVIDERS_MAP
 
 # Support for named login redirect URL
@@ -30,9 +29,8 @@ LOGIN_REDIRECT_URL = getattr(settings, 'LOGIN_REDIRECT_URL', '')
 LOGIN_URL = getattr(settings, 'LOGIN_URL', '')
 LOGOUT_REDIRECT_URL = getattr(settings, 'LOGOUT_REDIRECT_URL', '')
 
-TWITTER_CONSUMER_KEY = getattr(settings, 'TWITTER_CONSUMER_KEY', '')
-TWITTER_CONSUMER_SECRET = getattr(settings, 'TWITTER_CONSUMER_SECRET', '')
-
+NULL_CALLBACK = lambda request,user: None
+ 
 
 def login_page(request):
     try:
@@ -46,11 +44,8 @@ def login_page(request):
                               context_instance=RequestContext(request))
 
 def login_request(request, auth_provider, *args, **kwargs):
-    try:
-        provider = SOCIALAUTH_PROVIDERS_MAP[auth_provider]()
-    except KeyError:
-        logging.error("Socialauth: No such provider: %s", auth_provider)
-        return HttpResponseRedirect(reverse('socialauth_login_page'))
+    provider = get_auth_provider(auth_provider)
+    if not provider: return HttpResponseRedirect(reverse('socialauth_login_page'))
     
     response = provider.login_request(request, *args, **kwargs)
     
@@ -62,7 +57,7 @@ def login_request(request, auth_provider, *args, **kwargs):
     return response
 
 
-def login_request_callback(request, auth_provider):
+def login_request_callback(request, auth_provider, on_login=NULL_CALLBACK, on_inactive=NULL_CALLBACK):
     """
     Default login request callback - authenticates the user, and redirects to
     the requested page. If the user is already logged in, this account is associated
@@ -71,15 +66,18 @@ def login_request_callback(request, auth_provider):
     
     user = authenticate(request)
     if not user:
-        log.error("auth failed")
         return HttpResponseRedirect(reverse('socialauth_login_page'))
     
     if not user.is_active:
-        # TODO: disabled account message
+        response = on_inactive(request, user)
+        if response: return response
         logging.warn("User account %s disabled, attempted login from %s", user, auth_provider)
         return HttpResponseRedirect(reverse('socialauth_login_page'))
     
     login(request, user)
+    
+    response = on_login(request, user)
+    if response: return response
     
     next = request.GET.get('next', None)
     
@@ -99,69 +97,7 @@ def login_request_callback(request, auth_provider):
 
     return response
 
-def twitter_login(request):
-    next = request.GET.get('next', None)
-    if next:
-        request.session['twitter_login_next'] = next
-    
-    twitter = oauthtwitter.TwitterOAuthClient(TWITTER_CONSUMER_KEY, 
-                                              TWITTER_CONSUMER_SECRET)
-    request_token = twitter.fetch_request_token(
-                    callback=request.build_absolute_uri(
-                    reverse('socialauth_twitter_login_done')))
-    request.session['request_token'] = request_token.to_string()
-    signin_url = twitter.authorize_token_url(request_token)
-    return HttpResponseRedirect(signin_url)
 
-def twitter_login_done(request):
-    request_token = request.session.get('request_token', None)
-    verifier = request.GET.get('oauth_verifier', None)
-    denied = request.GET.get('denied', None)
-    
-    # If we've been denied, put them back to the signin page
-    # They probably meant to sign in with facebook >:D
-    if denied:
-        return HttpResponseRedirect(reverse("socialauth_login_page"))
-
-    # If there is no request_token for session,
-    # Means we didn't redirect user to twitter
-    if not request_token:
-        # Redirect the user to the login page,
-        return HttpResponseRedirect(reverse("socialauth_login_page"))
-
-    token = oauth.Token.from_string(request_token)
-
-    # If the token from session and token from twitter does not match
-    # means something bad happened to tokens
-    if token.key != request.GET.get('oauth_token', 'no-token'):
-        del_dict_key(request.session, 'request_token')
-        # Redirect the user to the login page
-        return HttpResponseRedirect(reverse("socialauth_login_page"))
-
-    twitter = oauthtwitter.TwitterOAuthClient(TWITTER_CONSUMER_KEY, 
-                                              TWITTER_CONSUMER_SECRET)
-    access_token = twitter.fetch_access_token(token, verifier)
-
-    request.session['access_token'] = access_token.to_string()
-    user = authenticate(twitter_access_token=access_token)
-  
-    # if user is authenticated then login user
-    if user:
-        login(request, user)
-    else:
-        # We were not able to authenticate user
-        # Redirect to login page
-        del_dict_key(request.session, 'access_token')
-        del_dict_key(request.session, 'request_token')
-        return HttpResponseRedirect(reverse('socialauth_login_page'))
-
-    # authentication was successful, use is now logged in
-    next = request.session.get('twitter_login_next', None)
-    if next:
-        del_dict_key(request.session, 'twitter_login_next')
-        return HttpResponseRedirect(next)
-    else:
-        return HttpResponseRedirect(LOGIN_REDIRECT_URL)
 
 def openid_login(request):
     if 'openid_next' in request.GET:
@@ -255,6 +191,3 @@ def social_logout(request):
 def closeDialog(request):
     return HttpResponse("<script>window.close()</script>")
 
-def del_dict_key(src_dict, key):
-    if key in src_dict:
-        del src_dict[key]

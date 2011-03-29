@@ -1,12 +1,15 @@
 from django.conf.urls.defaults import *
 from openid_consumer.views import complete, signout
 from django.views.generic.simple import direct_to_template
+from .settings import SOCIALAUTH_CALLBACK_VIEW
 
 #Login Views
 urlpatterns = patterns('socialauth.views',
     url(r'^login/$', 'login_page', name='socialauth_login_page'),
     url(r'^login/(?P<auth_provider>\w+)/$', 'login_request', name='socialauth_login'),
-    url(r'^login/(?P<auth_provider>\w+)/callback/$', 'login_request_callback', name='socialauth_login_callback'),
+    
+    url(r'^logout/$', 'social_logout',  name='socialauth_social_logout'),
+    url(r'^_closeDialog/$', 'closeDialog',  name='socialauth_close_dialog'),
     
     url(r'^facebook_login/xd_receiver.htm$', direct_to_template, {'template':'socialauth/xd_receiver.htm'}, name='socialauth_xd_receiver'),
 
@@ -22,9 +25,7 @@ urlpatterns = patterns('socialauth.views',
 )
 
 #Other views.
-urlpatterns += patterns('socialauth.views',
-    url(r'^$', 'login_page', name='socialauth_index'),                        
-    url(r'^logout/$', 'social_logout',  name='socialauth_social_logout'),
-    url(r'^_closeDialog/$', 'closeDialog',  name='socialauth_close_dialog'),
+urlpatterns += patterns('',
+    url(r'^login/(?P<auth_provider>\w+)/callback/$', SOCIALAUTH_CALLBACK_VIEW, name='socialauth_login_callback'),
 ) 
 

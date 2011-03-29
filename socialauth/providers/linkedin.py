@@ -1,41 +1,48 @@
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from socialauth.lib import linkedin
+from .oauth_provider import OAuth, OAuthDriver
 
-from oauth_provider import *
 
-LINKEDIN_CONSUMER_KEY = getattr(settings, 'LINKEDIN_CONSUMER_KEY', '')
-LINKEDIN_CONSUMER_SECRET = getattr(settings, 'LINKEDIN_CONSUMER_SECRET', '')
-
-class OAuthLinkedIn(OAuth):
-    provider_name = "LinkedIn"
-    oauth_driver = linkedin.LinkedIn
-    consumer_key = LINKEDIN_CONSUMER_KEY
-    consumer_secret = LINKEDIN_CONSUMER_SECRET
+class LinkedInOAuthDriver(OAuthDriver):
+    server_url = 'api.linkedin.com'
+    request_token_url = 'https://api.linkedin.com/uas/oauth/requestToken'
+    access_token_url = 'https://api.linkedin.com/uas/oauth/accessToken'
+    authorize_url = 'https://api.linkedin.com/uas/oauth/authorize'
     
-    def authenticate(self, linkedin_access_token, user=None):
-        linkedin = self.oauth_driver(self.consumer_key, )
-        # get their profile
+    try:
+        consumer_key = settings.LINKEDIN_CONSUMER_KEY
+        consumer_secret = settings.LINKEDIN_CONSUMER_SECRET
+    except AttributeError:
+        raise ImproperlyConfigured, \
+            "Missing settings for LinkedIn authentication: %s" \
+            % (e)
+    
+    @property
+    def sig_method(self):
+        return self.signature_method
+
+
+class LinkedIn(OAuth):
+    oauth_driver = LinkedInOAuthDriver
+    
+    def process_login(self, request):
+        linkedin_access_token = self.get_access_token(request)
+        if not linkedin_access_token:
+            return None
         
-        profile = (linkedin.ProfileApi(linkedin)
+        profile = (linkedin.ProfileApi(self.oauth_driver)
                    .getMyProfile(access_token=linkedin_access_token))
+        
+        return dict(
+            uid = profile.id,
+            first_name = profile.firstname,
+            last_name = profile.lastname,
+            url = profile.profile_url,
+            avatar_url = profile.picture_url,
+            location = profile.location,
+            company = profile.company,
+            industry = profile.industry,
+            headline = profile.headline,
+        )
 
-        try:
-            user_profile = (LinkedInUserProfile.objects
-                            .get(linkedin_uid=profile.id))
-            user = user_profile.user
-            return user
-        except LinkedInUserProfile.DoesNotExist:
-            # Create a new user
-            username = 'LI:%s' % profile.id
-
-            if not user:
-                user = User(username=username)
-                user.first_name, user.last_name = (profile.firstname, 
-                                                   profile.lastname)
-                user.email = '%s@socialauth' % (username)
-                user.save()
-                
-            userprofile = LinkedInUserProfile(user=user, 
-                                              linkedin_uid=profile.id)
-            userprofile.save()
-            
-            auth_meta = AuthMeta(user=user, provider='LinkedIn').save()
-            return user

@@ -14,14 +14,22 @@ for provider in SOCIALAUTH_PROVIDERS_MAP.values():
         if isinstance(item, type) and issubclass(item, ProviderModel):
             globals()[name] = item
 
+class AuthMetaManager(models.Manager):
+    def get_for_request(self, request):
+        return self.filter(provider=request.auth_provider.provider_name, uid=request.auth['uid'])
+
+
 class AuthMeta(ProviderModel):
     """Metadata for Authentication"""
     def __unicode__(self):
         return '%s - %s' % (smart_unicode(self.user), self.provider)
     
+    objects = AuthMetaManager()
+    
     user = models.ForeignKey(User)
     provider = models.CharField(max_length=50)
     uid = models.CharField(max_length=255)
+    username = models.CharField(max_length=255, null=True, blank=True)
     url = models.TextField(null=True, blank=True)
     token = models.TextField(null=True, blank=True)
     info = PickledObjectField()
@@ -29,31 +37,9 @@ class AuthMeta(ProviderModel):
     class Meta:
         unique_together = ('provider','uid')
     
-    def update(self, user, url=None, token=None, **info):
+    def update(self, user, username=None, url=None, token=None, **info):
         self.user = user
+        if username: self.username = username
         if url: self.url = url
         if token: self.token = token
         if info: self.info = info
-
-
-class TwitterUserProfile(models.Model):
-    """
-    For users who login via Twitter.
-    """
-    screen_name = models.CharField(max_length=200,
-                                   unique=True,
-                                   db_index=True)
-    
-    user = models.ForeignKey(User, related_name='twitter_profiles')
-    access_token = models.CharField(max_length=255,
-                                    blank=True,
-                                    null=True,
-                                    editable=False)
-    profile_image_url = models.URLField(blank=True, null=True)
-    location = models.TextField(blank=True, null=True)
-    url = models.URLField(blank=True, null=True)
-    description = models.CharField(max_length=160, blank=True, null=True)
-
-    def __unicode__(self):
-        return "%s's profile" % smart_unicode(self.user)
-        

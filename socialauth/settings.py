@@ -2,6 +2,8 @@ from django.conf import settings
 import sys, logging
 from socialauth.providers.base import Provider
 
+SOCIALAUTH_CALLBACK_VIEW = getattr(settings, 'SOCIALAUTH_CALLBACK_VIEW', 'socialauth.views.login_request_callback')
+
 SOCIALAUTH_PROVIDERS_MAP = {}
 for p in getattr(settings, 'SOCIALAUTH_PROVIDERS', ()):
     module, sep, klass = p.rpartition('.')
