@@ -6,6 +6,7 @@ setup(
     name = "django-socialauth",
     version = "0.1.2c",
     packages = ['socialauth',
+                'socialauth/providers',
                 'socialauth/lib',
                 'socialauth/templatetags',
                 'openid_consumer'],

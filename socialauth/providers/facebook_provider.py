@@ -79,10 +79,12 @@ class Facebook(Provider):
         
         return dict(
             uid = fb_data['id'],
+            username = fb_data.get('username', None),
             first_name=fb_data['first_name'],
             last_name=fb_data['last_name'],
             email=fb_data.get('email', None),
             url = fb_data.get('link', None),
+            avatar_url = "https://graph.facebook.com/%s/picture" % (fb_data.get('username', fb_data['id']),),
             token = access_token
         )
         
