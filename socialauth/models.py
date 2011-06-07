@@ -28,11 +28,11 @@ class AuthMeta(ProviderModel):
     
     user = models.ForeignKey(User)
     provider = models.CharField(max_length=50)
-    uid = models.CharField(max_length=255, default='')
+    uid = models.CharField(max_length=255)
     username = models.CharField(max_length=255, null=True, blank=True)
     url = models.TextField(null=True, blank=True)
     token = models.TextField(null=True, blank=True)
-    info = PickledObjectField(default={})
+    info = PickledObjectField()
     
     class Meta:
         unique_together = ('provider','uid')
